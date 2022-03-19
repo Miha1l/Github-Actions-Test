@@ -1,0 +1,25 @@
+name: First action
+
+on:
+  pull_request:
+    types: [opened, reopened, edited]
+
+jobs:
+  get-info:
+    name: Get PR Date
+    runs-on: ubuntu-latest
+    outputs:
+      created-date: ${{ steps.get-date.outputs.created_at }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get date
+        id: get-date
+        uses: Brymastr/pr-info-action@v1
+      - name: Comment PR
+        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          event: APPROVE
+          body: 'Дата создания ${{ steps.get-date.outputs.created_at }} \\n Дата создания 2: ${{ github.event.pull_request.created_at }}'
+
+    
