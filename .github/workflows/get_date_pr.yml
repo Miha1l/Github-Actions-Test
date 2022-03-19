@@ -1,15 +1,16 @@
-name: First action
+name: Check PR date and time creation
 
 on:
   pull_request:
+    branches: [master, main]
     types: [opened, synchronize, reopened, edited]
 
 jobs:
-  get-date:
-    name: Дата и время создания PR
+  get-date-and-time:
+    name: Date and time creation PR
     runs-on: ubuntu-latest
     steps:
-      - name: Проверка даты и времени создания PR
+      - name: Get PR date and time creation
         run: |
           python3 <<END
           import time
