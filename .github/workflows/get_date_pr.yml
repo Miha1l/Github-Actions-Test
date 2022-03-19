@@ -9,13 +9,6 @@ jobs:
     name: Дата и время создания PR
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Добавить 
-        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          event: APPROVE
-          body: 'Дата создания: ${{ github.event.pull_request.created_at }}'
       - name: Проверка даты и времени создания PR
         run: |
           python3 <<END
