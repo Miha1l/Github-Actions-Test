@@ -9,8 +9,8 @@ jobs:
   get-date-and-time:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: Get PR date and time creation
+      - uses: actions/checkout@v3
         run: |
           python3 <<END
           import time
