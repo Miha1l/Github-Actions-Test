@@ -7,7 +7,6 @@ on:
 
 jobs:
   get-date-and-time:
-    name: Date and time creation PR
     runs-on: ubuntu-latest
     steps:
       - name: Get PR date and time creation
