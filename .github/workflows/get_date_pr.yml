@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: szenius/set-timezone@v1.0
         with:
-          timezoneLinux: 'Russia/Moscow'
+          timezoneLinux: 'Europe/Moscow'
       - name: Get PR date and time creation
         run: |
           python3 <<END
