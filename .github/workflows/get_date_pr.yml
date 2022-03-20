@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: zcong1993/setup-timezone@master
-        with:
-          timezone: Asia/Shanghai
       - name: Get PR date and time creation
         run: |
           python3 <<END
