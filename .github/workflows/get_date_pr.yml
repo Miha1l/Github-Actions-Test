@@ -9,7 +9,6 @@ jobs:
   get-date-and-time:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
       - name: Get PR date and time creation
         run: |
           python3 <<END
@@ -23,4 +22,3 @@ jobs:
           print(f'Время создания: {creation_time}')
 
           END
-            
