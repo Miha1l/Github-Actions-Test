@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Get PR date and time creation
+        uses: szenius/set-timezone@v1.0
+        with:
+          timezoneLinux: 'Russia/Moscow'
         run: |
           python3 <<END
           import time
