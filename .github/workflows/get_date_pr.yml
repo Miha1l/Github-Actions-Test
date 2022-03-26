@@ -90,9 +90,7 @@ jobs:
                       print(f'::set-output name=check_rep_error::Выполнение работы')
                   if j==4:
                       print(f'::set-output name=check_rep_error::Выводы')
-            '''
-            for param in sys.argv:
-              print (param)
+            
             try:
                 #f = open('FILE_PATH.txt', encoding='utf-8')
                 f = open('FILE_PATH.txt')
@@ -108,9 +106,9 @@ jobs:
                 notebook = open(path)
             except FileNotFoundError:
                 print("No file")
-            '''
-            data = json.loads(sys.argv[1])
-            #notebook.close()
+            
+            #data = json.loads(sys.argv[1])
+            notebook.close()
             markdown, code, language = jsonParce(data)
             changePoints(markdown)
             END
