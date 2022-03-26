@@ -1,10 +1,10 @@
-name: Check PR date and time creation
+name: IPYNB_PARSER
 
 on:
   pull_request:
-    branches: [master, main]
+    branches: [ master, main ]
     types: [opened, synchronize, reopened, edited]
-
+    
 jobs:
   get-date-and-time:
     runs-on: ubuntu-latest
@@ -20,5 +20,107 @@ jobs:
           creation_time = time.strftime('%H:%M:%S', date)
           print(f'Дата создания: {creation_date}')
           print(f'Время создания: {creation_time}')
-
+          
           END
+  check_ipynb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Имя PR
+        run: echo ${{github.event.pull_request.title}}
+      - name: Путь до файла
+        run: |
+          python3 << END > FILE_PATH.txt
+          import os
+          pr_name = '${{github.event.pull_request.title}}'
+          index = pr_name.rfind('_')
+          print(pr_name[:index]+'/'+pr_name[index+1:]+'.ipynb\n')
+          END
+          cat FILE_PATH.txt
+      - name: Содержимое файла
+        run: cat FILE_PATH.txt
+      - name: debug
+        run: ls
+      - name: test
+        run: |
+            cat << END > parser.py
+            import json
+            import os
+            import sys
+            
+            def jsonParce(data):
+              markdown = []
+              code = []
+              cells = data.get("cells")
+              for cell in cells:
+                if cell.get("cell_type") == "markdown":
+                  for md in cell.get("source"):
+                    markdown.append(md)
+                elif cell.get("cell_type") == "code":
+                  for c in cell.get("source"):
+                    code.append(c)
+              return markdown, code, data.get("metadata").get("kernelspec").get("language")
+            
+            def changePoints(markdown):
+              substrings=["# Цель работы", "# Основные теоретические положения", "# Постановка задачи", "# Выполнение работы", "# Выводы"]
+              j=0
+              substr=substrings[j]
+            
+              for str in markdown:
+                  if substr in str:
+                      if j<4:
+                          j=j+1
+                          substr = substrings[j]
+                          #print("\n",j,"\n",substr)
+                      else:
+                          j=j+1
+              if j == 5:
+                  print(f'::set-output name=check_report::1')
+                  #print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')
+              else:
+                  print(f'::set-output name=check_report::0')
+                  print(f'::set-output name=check_rep_error::Не найдено: ')
+                  if j==0:
+                      print(f'::set-output name=check_rep_error::Цель работы')
+                  if j==1:
+                      print(f'::set-output name=check_rep_error::Основные теоретические положения')
+                  if j==2:
+                      print(f'::set-output name=check_rep_error::Постановка задачи')
+                  if j==3:
+                      print(f'::set-output name=check_rep_error::Выполнение работы')
+                  if j==4:
+                      print(f'::set-output name=check_rep_error::Выводы')
+            '''
+            for param in sys.argv:
+              print (param)
+            try:
+                #f = open('FILE_PATH.txt', encoding='utf-8')
+                f = open('FILE_PATH.txt')
+            except FileNotFoundError:
+                print("No file FILE_PATH")
+            
+            path = f.read()
+            
+            os.system('ls')
+            f.close
+            print(path)
+            try:
+                notebook = open(path)
+            except FileNotFoundError:
+                print("No file")
+            '''
+            data = json.loads(sys.argv[1])
+            #notebook.close()
+            markdown, code, language = jsonParce(data)
+            changePoints(markdown)
+            END
+      - name: CheckRep
+        id: changePoints
+        run: |
+          python3 parser.py "$(cat $(cat FILE_PATH.txt))"
+      - name: Approve/Request changes pull request
+        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          event: ${{ steps.changePoints.outputs.check_report == 1 && 'APPROVE' || 'REQUEST_CHANGES' }}
+          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: ${{ steps.changePoints.outputs.check_rep_error }}"
