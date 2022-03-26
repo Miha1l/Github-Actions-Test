@@ -104,7 +104,7 @@ jobs:
             print(path)
             print(len(path))
             try:
-                notebook = open(path)
+                notebook = open(path[:len(path)-2])
             except FileNotFoundError:
                 print("No file")
             
