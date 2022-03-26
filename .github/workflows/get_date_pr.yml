@@ -108,6 +108,7 @@ jobs:
                 print("No file")
             
             #data = json.loads(sys.argv[1])
+            data = json.loads(notebook)
             notebook.close()
             markdown, code, language = jsonParce(data)
             changePoints(markdown)
