@@ -117,7 +117,7 @@ jobs:
       - name: CheckRep
         id: changePoints
         run: |
-          python3 parser.py "$(cat $(cat FILE_PATH.txt))"
+          python3 parser.py
       - name: Approve/Request changes pull request
         uses: andrewmusgrave/automatic-pull-request-review@0.0.2
         with:
