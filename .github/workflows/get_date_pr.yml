@@ -99,11 +99,11 @@ jobs:
             
             path = f.read()
             
-            os.system('ls Loykonen_MR/')
+            #os.system('ls Loykonen_MR/')
             f.close
             print(path)
             try:
-                notebook = open("Loykonen_MR/lab1.ipynb")
+                notebook = open(path)
             except FileNotFoundError:
                 print("No file")
             
