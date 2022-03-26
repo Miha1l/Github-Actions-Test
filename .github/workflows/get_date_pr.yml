@@ -101,7 +101,7 @@ jobs:
             
             #os.system('ls Loykonen_MR/')
             f.close
-            print(path)
+            print(path, "---")
             try:
                 notebook = open(path)
             except FileNotFoundError:
