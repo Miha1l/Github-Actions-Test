@@ -86,7 +86,7 @@ jobs:
                 date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
                 creation_date = str(date_time_obj.date())
                 creation_time = str(date_time_obj.time())
-                if creation_date < dl and int(creation_time.split(':')[0]) < 24:
+                if creation_date < dl:
                   print(f'::set-output name=check_deadline::1')
                 else:
                   print(f'::set-output name=check_deadline::0')
