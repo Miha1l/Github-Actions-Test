@@ -82,7 +82,7 @@ jobs:
               try:
                 dl = deadlines[labnum]  
                 date_time_str = '${{github.event.pull_request.created_at}}'
-                timezone = pytz.timezone("Etc/GMT-6")
+                timezone = pytz.timezone("Europe/Moscow")
                 date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
                 creation_date = str(date_time_obj.date())
                 creation_time = str(date_time_obj.time())
