@@ -131,6 +131,7 @@ jobs:
               if is_all_found:
                   print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')
               else:
+<<<<<<< HEAD
                   print(f'::set-output name=check_rep_error::Не найдено: {substrings[j]}')
             def start_analyzing(path):
               try:
@@ -148,6 +149,48 @@ jobs:
             else:
               print(f'::set-output name=check_report::0')
             END
+=======
+                  print(f'::set-output name=check_report::0')
+                  print(f'::set-output name=check_rep_error::Не найдено: ')
+                  if j==0:
+                      print(f'::set-output name=check_rep_error::Цель работы')
+                  if j==1:
+                      print(f'::set-output name=check_rep_error::Основные теоретические положения')
+                  if j==2:
+                      print(f'::set-output name=check_rep_error::Постановка задачи')
+                  if j==3:
+                      print(f'::set-output name=check_rep_error::Выполнение работы')
+                  if j==4:
+                      print(f'::set-output name=check_rep_error::Выводы')
+            
+            try:
+                #f = open('FILE_PATH.txt', encoding='utf-8')
+                f = open('FILE_PATH.txt')
+            except FileNotFoundError:
+                print("No file FILE_PATH")
+            
+            path = f.read()
+            
+            #os.system('ls Loykonen_MR/')
+            f.close
+            print(path)
+            print(len(path))
+            try:
+                notebook = open(path[:len(path)-2])
+            except FileNotFoundError:
+                print("No file")
+            
+            #data = json.loads(sys.argv[1])
+            data = json.load(notebook)
+            notebook.close()
+            markdown, code, language = jsonParce(data)
+            changePoints(markdown)
+            END
+      - name: CheckRep
+        id: changePoints
+        run: |
+          python3 parser.py
+>>>>>>> 9f102e3f3c0428947bae52cf153e07352b40a45b
       - name: Approve/Request changes pull request
         uses: andrewmusgrave/automatic-pull-request-review@0.0.2
         with:
