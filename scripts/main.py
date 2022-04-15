@@ -1,14 +1,16 @@
-import sys
-import time
+from datetime import datetime
+import pytz
 
 
 def main():
-    data = sys.argv[1]
-    date = time.strptime(data, '%Y-%m-%dT%H:%M:%SZ')
-    creation_date = time.strftime('%Y-%m-%d', date)
-    creation_time = time.strftime('%H:%M:%S', date)
-    print(f'Дата создания: {creation_date}')
-    print(f'Время создания: {creation_time}')
+    # date_time_str = '${{github.event.pull_request.created_at}}'
+    date_time_str = "2022-04-20T11:16:08Z"
+    timezone = pytz.timezone("Etc/GMT-6")
+    date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
+    creation_date = str(date_time_obj.date())
+    creation_time = str(date_time_obj.time())
+    print(f"Дата создания: {creation_date}")
+    print(f"Время создания: {creation_time}")
     return
 
 
