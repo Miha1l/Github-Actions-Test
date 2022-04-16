@@ -75,7 +75,7 @@ jobs:
                 if creation_date <= dl:
                   print(f'::set-output name=check_deadline::1')
                   #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += "Работа загружена: " + creation_date + creation_time + "\n" + "Дедлайн: " + dl + "\n"
+                  messageString += "Работа загружена: " + creation_date + creation_time + "'\n'" + "Дедлайн: " + dl + "'\n'"
                   print('::set-output name=check_deadline_error::' + messageString)
                 else:
                   print(f'::set-output name=check_deadline::0')
