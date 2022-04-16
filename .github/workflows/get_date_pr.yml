@@ -75,7 +75,7 @@ jobs:
                 if creation_date <= dl:
                   print(f'::set-output name=check_deadline::1')
                   #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += "Работа загружена: " + creation_date + creation_time + "\n" + "Дедлайн: " + dl + "\n"
+                  messageString += "Работа загружена: " + creation_date + creation_time + "%0A" + "Дедлайн: " + dl + "%0A"
                   print(f'::set-output name=check_deadline_error::{messageString}')
                 else:
                   print(f'::set-output name=check_deadline::0')
@@ -94,10 +94,6 @@ jobs:
           else:
             print(f'::set-output name=check_deadline::0')
           END
-      - name: test
-        run: |
-          check_deadline_error="${check_deadline_error//$'\n'/'%0A'}"
-          echo "::set-output name=check_deadline_error::$check_deadline_error"
       - name: CheckRep
         id: changePoints
         run: |
