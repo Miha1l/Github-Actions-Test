@@ -166,7 +166,7 @@ jobs:
                 markdown, code, language = jsonParce(data)
                 # print(f'::set-output name=check_rep_error::Ядро: {language}')
                 messageString += f'Ядро: {language}\n'
-                print(f"Ядро: {languange}")
+                print(f"Ядро: {language}")
                 changePoints(markdown, messageString)
         
         
