@@ -6,22 +6,6 @@ on:
     types: [opened, synchronize, reopened, edited]
 
 jobs:
-  get-date-and-time:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get PR date and time creation
-        run: |
-          python3 <<END
-          import time
-          
-          data = '${{github.event.pull_request.created_at}}'
-          date = time.strptime(data, '%Y-%m-%dT%H:%M:%SZ')
-          creation_date = time.strftime('%Y-%m-%d', date)
-          creation_time = time.strftime('%H:%M:%S', date)
-          print(f'Дата создания: {creation_date}')
-          print(f'Время создания: {creation_time}')
-          
-          END
   check_ipynb:
     runs-on: ubuntu-latest
     steps:
@@ -75,12 +59,14 @@ jobs:
           
           if '${{steps.check_path.outputs.check_file}}' == '1':
             labnum = '${{steps.check_path.outputs.labnum}}'
+            nl = '\n'
+            messageString = f''
             try:
               f = open("deadline.json", encoding='utf-8')
               deadlines = json.load(f)
               f.close()
               try:
-                dl = deadlines[labnum]  
+                dl = deadlines[labnum]
                 date_time_str = '${{github.event.pull_request.created_at}}'
                 timezone = pytz.timezone("Europe/Moscow")
                 date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
@@ -88,17 +74,23 @@ jobs:
                 creation_time = str(date_time_obj.time())
                 if creation_date <= dl:
                   print(f'::set-output name=check_deadline::1')
+                  #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
+                  messageString += "Работа загружена: " + creation_date + creation_time + "\\n"+"Дедлайн: " + dl + "\n"
+                  print('::set-output name=check_deadline_error::' + messageString)
                 else:
                   print(f'::set-output name=check_deadline::0')
-                  print(f'::set-output name=check_deadline_error::'+ "Вы опоздали. Работа загружена: {0} {1}  Дедлайн: {2}".format(creation_date, creation_time, dl))
-                  print("Вы опоздали. \\n Работа загружена: {0} {1} \\n Дедлайн: {2}".format(creation_date, creation_time, dl))
+                  #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}Дедлайн: {dl}'
+                  print(f'::set-output name=check_deadline_error::{messageString}')
               except KeyError:
                 print(f'::set-output name=check_deadline::0')
                 print(f'::set-output name=check_deadline_error::отсутствует дедлайн для данной лабораторной работы ')
+                #messageString += f'отсутствует дедлайн для данной лабораторной работы '
             except FileNotFoundError:
               print("No such file or directory: '{}'".format(filename))
               print(f'::set-output name=check_deadline::0')
               print(f'::set-output name=check_deadline_error::Неудалось найти файл с дедлайнами ')
+              #messageString += f'Неудалось найти файл с дедлайнами '
           else:
             print(f'::set-output name=check_deadline::0')
           END
@@ -109,55 +101,101 @@ jobs:
             import json
             
             def jsonParce(data):
-              markdown = []
-              code = []
-              cells = data.get("cells")
-              for cell in cells:
-                if cell.get("cell_type") == "markdown":
-                  for md in cell.get("source"):
-                    markdown.append(md)
-                elif cell.get("cell_type") == "code":
-                  for c in cell.get("source"):
-                    code.append(c)
-              return markdown, code, data.get("metadata").get("kernelspec").get("language")
-            
-            def changePoints(markdown):
-              substrings=["Цель работы", "Основные теоретические положения", "Постановка задачи", "Выполнение работы", "Выводы"]
-              j=0
-              substr = substrings[j]
-              is_all_found = 0
-            
-              for line in markdown:
-                  if substr in line:
-                      j+=1
-                      if j == len(substrings):
-                        is_all_found = 1
-                        break
-                      substr = "# " + substrings[j]
-              print(f'::set-output name=check_report::{str(is_all_found)}')
-              if is_all_found:
-                  print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')
-              else:
-                  print(f'::set-output name=check_rep_error::Не найдено: {substrings[j]}')
-            def start_analyzing(path):
-              try:
-                notebook = open(path, encoding='utf-8')
-              except FileNotFoundError:
-                print("No file")
-              data = json.load(notebook)
-              notebook.close()
-              markdown, code, language = jsonParce(data)
-              changePoints(markdown)
-              
+                markdown = []
+                code = []
+                cells = data.get("cells")
+                for cell in cells:
+                    if cell.get("cell_type") == "markdown":
+                        for md in cell.get("source"):
+                            markdown.append(md)
+                    elif cell.get("cell_type") == "code":
+                        for c in cell.get("source"):
+                            code.append(c)
+                return markdown, code, data.get("metadata").get("kernelspec").get("language")
+        
+        
+            def changePoints(markdown: list, messageString: str) -> None:
+                """
+                    Function checks availability of all necessary headers.
+        
+                    Args:
+                        markown (list): List of strings from cells in Jupyter Notebook.
+        
+                    Returns:
+                        None
+                """
+                substrings: list = ["# Цель работы", "# Основные теоретические положения", "# Постановка задачи",
+                                    "# Выполнение работы",
+                                    "# Выводы"]
+                dict_substrings: dict = dict.fromkeys(substrings, False)
+        
+                for key in dict_substrings:
+                    for str in markdown:
+                        if key in str:
+                            dict_substrings[key] = True
+        
+                for key in dict_substrings:
+                    if not dict_substrings[key]:
+                        # print(f'::set-output name=check_rep_error::{key} not found')
+                        messageString += f'{key} not found'
+                        print(key + ' not found\n')
+                    else:
+                        # print(f'::set-output name=check_rep_error::{key} ok')
+                        messageString += f'{key} ok'
+                        print(key + ' ok\n')
+        
+                if all(value for value in dict_substrings.values()):
+                    # print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')   
+                    messageString += f'Кажется, всё хорошо.'
+                    print(f'::set-output name=check_rep_error::{messageString}')
+                    print(f'::set-output name=check_report::1')
+                else:
+                    # print(f'::set-output name=check_rep_error::Попробуй снова!')
+                    messageString += f'Попробуй снова!'
+                    print(f'::set-output name=check_rep_error::{messageString}')
+                    print(f'::set-output name=check_report::0')
+        
+        
+            def start_analyzing(path, messageString):
+                try:
+                    notebook = open(path, encoding='utf-8')
+                except FileNotFoundError:
+                    print("No file")
+                data = json.load(notebook)
+                notebook.close()
+                markdown, code, language = jsonParce(data)
+                # print(f'::set-output name=check_rep_error::Ядро: {language}')
+                messageString += f'Ядро: {language}'
+                print("Ядро: " + language)
+                changePoints(markdown, messageString)
+        
+        
+            messageString = f''
             path = '${{steps.check_path.outputs.path}}'
-            if path and '${{steps.checkdeadline.outputs.check_deadline}}' == '1':
-              start_analyzing(path)
+            if path:
+                start_analyzing(path, messageString)
             else:
-              print(f'::set-output name=check_report::0')
+                print(f'::set-output name=check_report::0')
             END
-      - name: Approve/Request changes pull request
+      - name: Start comment
         uses: andrewmusgrave/automatic-pull-request-review@0.0.2
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          event: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'APPROVE' || 'REQUEST_CHANGES' }}
-          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: ${{ steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && steps.changePoints.outputs.check_rep_error || steps.check_path.outputs.check_file_error || steps.checkdeadline.outputs.check_deadline_error}}"
+          event: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'APPROVE' || 'REQUEST_CHANGES'}}
+          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: "
+
+      - name: bot comments
+        if: ${{steps.check_path.outputs.check_file == 0}}
+        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          event: 'COMMENT'
+          body: "${{steps.check_path.outputs.check_file_error}} \\n"
+
+      - name: bot comments1
+        if: ${{steps.check_path.outputs.check_file == 1}}
+        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          event: 'COMMENT'
+          body: "${{steps.checkdeadline.outputs.check_deadline_error}} \\n ${{steps.changePoints.outputs.check_rep_error}} "
