@@ -96,10 +96,8 @@ jobs:
           END
       - name: test
         run: |
-          check_deadline_error="${check_deadline_error//'%'/'%25'}"
           check_deadline_error="${check_deadline_error//$'\n'/'%0A'}"
-          check_deadline_error="${check_deadline_error//$'\r'/'%0D'}"
-          
+          echo "::set-output name=check_deadline_error::$check_deadline_error"
       - name: CheckRep
         id: changePoints
         run: |
