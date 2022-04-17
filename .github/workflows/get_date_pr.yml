@@ -84,7 +84,7 @@ jobs:
                 else:
                   print(f'::set-output name=check_deadline::0')
                   #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали. Работа загружена: {creation_date} \n {creation_time}\nДедлайн: {dl}'
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} %0A {creation_time}%0AДедлайн: {dl}'
                   print(f'::set-output name=check_deadline_error::{messageString}')
                   # env_file.write(f"CHECK_DEADLINE={messageString}")
               except KeyError:
