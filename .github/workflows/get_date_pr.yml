@@ -60,7 +60,7 @@ jobs:
 
           if '${{steps.check_path.outputs.check_file}}' == '1':
             labnum = '${{steps.check_path.outputs.labnum}}'
-            nl = '%0A'
+            n = '%0A'
             messageString = f''
             try:
               f = open("deadline.json", encoding='utf-8')
@@ -75,13 +75,13 @@ jobs:
                 creation_time = str(date_time_obj.time())
                 if creation_date <= dl:
                   print(f'::set-output name=check_deadline::1')
-                  #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += "Работа загружена: " + creation_date + creation_time + "\n" + "Дедлайн: " + dl + "\n"
+                  #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}')
+                  messageString += "Работа загружена: " + creation_date + creation_time + n + "Дедлайн: " + dl + n
                   print(f'::set-output name=check_deadline_error::{messageString}')
                 else:
                   print(f'::set-output name=check_deadline::0')
-                  #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}{n1}Дедлайн: {dl}'
+                  #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}')
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}'
                   print(f'::set-output name=check_deadline_error::{messageString}')
               except KeyError:
                 print(f'::set-output name=check_deadline::0')
