@@ -84,7 +84,7 @@ jobs:
                 else:
                   print(f'::set-output name=check_deadline::0')
                   #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали. Работа загружена: {creation_date} %0A {creation_time}%0AДедлайн: {dl}'
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}%0AДедлайн: {dl}'
                   print(f'::set-output name=check_deadline_error::{messageString}')
                   # env_file.write(f"CHECK_DEADLINE={messageString}")
               except KeyError:
@@ -146,11 +146,11 @@ jobs:
                     if not dict_substrings[key]:
                         # print(f'::set-output name=check_rep_error::{key} not found')
                         messageString += f'{key} not found'
-                        print(key + ' not found\n')
+                        print(key + ' not found%0A')
                     else:
                         # print(f'::set-output name=check_rep_error::{key} ok')
                         messageString += f'{key} ok'
-                        print(key + ' ok\n')
+                        print(key + ' ok%0A')
         
                 if all(value for value in dict_substrings.values()):
                     # print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')   
@@ -173,7 +173,7 @@ jobs:
                 notebook.close()
                 markdown, code, language = jsonParce(data)
                 # print(f'::set-output name=check_rep_error::Ядро: {language}')
-                messageString += f'Ядро: {language}\n'
+                messageString += f'Ядро: {language}%0A'
                 print(f"Ядро: {language}")
                 changePoints(markdown, messageString)
         
