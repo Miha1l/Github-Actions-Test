@@ -56,10 +56,7 @@ jobs:
           from datetime import datetime
           import pytz
           import json
-          import os
           
-          name_env_file = os.getenv("GITHUB_ENV")
-          env_file = open(name_env_file, "a")
 
           if '${{steps.check_path.outputs.check_file}}' == '1':
             labnum = '${{steps.check_path.outputs.labnum}}'
@@ -84,9 +81,8 @@ jobs:
                 else:
                   print(f'::set-output name=check_deadline::0')
                   #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали.\n Работа загружена: {creation_date} {creation_time}\nДедлайн: {dl}'
-                  # print(f'::set-output name=check_deadline_error::{messageString}')
-                  env_file.write(f"CHECK_DEADLINE={messageString}")
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}{n1}Дедлайн: {dl}'
+                  print(f'::set-output name=check_deadline_error::{messageString}')
               except KeyError:
                 print(f'::set-output name=check_deadline::0')
                 print(f'::set-output name=check_deadline_error::отсутствует дедлайн для данной лабораторной работы ')
@@ -98,9 +94,6 @@ jobs:
               #messageString += f'Неудалось найти файл с дедлайнами '
           else:
             print(f'::set-output name=check_deadline::0')
-          
-          env_file.close()
-
           END
       - name: CheckRep
         id: changePoints
@@ -206,4 +199,4 @@ jobs:
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
           event: 'COMMENT'
-          body: "${{env.CHECK_DEADLINE}} \\n ${{steps.changePoints.outputs.check_rep_error}} "
+          body: "${{steps.checkdeadline.outputs.check_deadline_error}} \\n ${{steps.changePoints.outputs.check_rep_error}} "
