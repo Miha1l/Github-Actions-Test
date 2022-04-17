@@ -149,8 +149,8 @@ jobs:
                         print(key + ' not found%0A')
                     else:
                         # print(f'::set-output name=check_rep_error::{key} ok')
-                        messageString += f'{key} ok'
-                        print(key + ' ok%0A')
+                        messageString += f'{key} ok%0A'
+                        print(key + ' ok')
         
                 if all(value for value in dict_substrings.values()):
                     # print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')   
