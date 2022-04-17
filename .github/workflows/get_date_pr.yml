@@ -56,7 +56,11 @@ jobs:
           from datetime import datetime
           import pytz
           import json
+          import os
           
+          name_env_file = os.getenv("GITHUB_ENV")
+          env_file = open(name_env_file, "a")
+
           if '${{steps.check_path.outputs.check_file}}' == '1':
             labnum = '${{steps.check_path.outputs.labnum}}'
             nl = '\n'
@@ -75,13 +79,14 @@ jobs:
                 if creation_date <= dl:
                   print(f'::set-output name=check_deadline::1')
                   #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += "Работа загружена: " + creation_date + creation_time + "%0A" + "Дедлайн: " + dl + "%0A"
+                  messageString += "Работа загружена: " + creation_date + creation_time + "\n" + "Дедлайн: " + dl + "\n"
                   print(f'::set-output name=check_deadline_error::{messageString}')
                 else:
                   print(f'::set-output name=check_deadline::0')
                   #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{nl}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}Дедлайн: {dl}'
+                  messageString += f'Вы опоздали. Работа загружена: {creation_date} \n {creation_time}\nДедлайн: {dl}'
                   print(f'::set-output name=check_deadline_error::{messageString}')
+                  # env_file.write(f"CHECK_DEADLINE={messageString}")
               except KeyError:
                 print(f'::set-output name=check_deadline::0')
                 print(f'::set-output name=check_deadline_error::отсутствует дедлайн для данной лабораторной работы ')
@@ -93,6 +98,9 @@ jobs:
               #messageString += f'Неудалось найти файл с дедлайнами '
           else:
             print(f'::set-output name=check_deadline::0')
+          
+          env_file.close()
+
           END
       - name: CheckRep
         id: changePoints
