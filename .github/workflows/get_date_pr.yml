@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ master, main ]
     types: [opened, synchronize, reopened, edited]
-    
+
 jobs:
   get-date-and-time:
     runs-on: ubuntu-latest
@@ -26,27 +26,87 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      - name: Установка библиотек
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytz
       - name: Имя PR
         run: echo ${{github.event.pull_request.title}}
       - name: Путь до файла
+        id: check_path
         run: |
-          python3 << END > FILE_PATH.txt
-          import os
-          pr_name = '${{github.event.pull_request.title}}'
-          index = pr_name.rfind('_')
-          print(pr_name[:index]+'/'+pr_name[index+1:]+'.ipynb\n')
+          python3 << END
+          import os.path
+          import re
+          
+          pr_name =  '${{github.event.pull_request.title}}'
+          items = pr_name.split('_')
+          lab_num = items[-1]
+          path = '/'.join(items)+'.ipynb' 
+   
+          if not re.match(r'^\d{4}_[a-zA-Z]+_lab\d{1,2}$', pr_name):
+            print(f'::set-output name=check_file::0')
+            print(f'::set-output name=check_file_error::Название PR не соотвествует шаблону <Номер группы>_<ФИО>_lab<номер лабораторной>! ')
+            path=''
+            lab_num=''
+
+          if path and not os.path.exists(path):
+            print(f'::set-output name=check_file_error::Файл не найден по шаблону <Номер группы>/<ФИО>/lab<номер лабораторной>.ipynb' )
+            path=''
+            lab_num=''
+
+          if path:
+            print(f'::set-output name=check_file::1')
+            print(f'::set-output name=path::'+path)
+            print(f'::set-output name=labnum::'+lab_num)
+          else:
+            print(f'::set-output name=check_file::0')
           END
-          cat FILE_PATH.txt
-      - name: Содержимое файла
-        run: cat FILE_PATH.txt
-      - name: debug
-        run: ls
-      - name: test
+      - name: CheckDeadline
+        id: checkdeadline
         run: |
-            cat << END > parser.py
+          python3 << END
+          from datetime import datetime
+          import pytz
+          import json
+          
+          if '${{steps.check_path.outputs.check_file}}' == '1':
+            labnum = '${{steps.check_path.outputs.labnum}}'
+            try:
+              f = open("deadline.json", encoding='utf-8')
+              deadlines = json.load(f)
+              f.close()
+              try:
+                dl = deadlines[labnum]  
+                date_time_str = '${{github.event.pull_request.created_at}}'
+                timezone = pytz.timezone("Europe/Moscow")
+                date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
+                creation_date = str(date_time_obj.date())
+                creation_time = str(date_time_obj.time())
+                if creation_date <= dl:
+                  print(f'::set-output name=check_deadline::1')
+                else:
+                  print(f'::set-output name=check_deadline::0')
+                  print(f'::set-output name=check_deadline_error::'+ "Вы опоздали. Работа загружена: {0} {1}  Дедлайн: {2}".format(creation_date, creation_time, dl))
+                  print("Вы опоздали. \\n Работа загружена: {0} {1} \\n Дедлайн: {2}".format(creation_date, creation_time, dl))
+              except KeyError:
+                print(f'::set-output name=check_deadline::0')
+                print(f'::set-output name=check_deadline_error::отсутствует дедлайн для данной лабораторной работы ')
+            except FileNotFoundError:
+              print("No such file or directory: '{}'".format(filename))
+              print(f'::set-output name=check_deadline::0')
+              print(f'::set-output name=check_deadline_error::Неудалось найти файл с дедлайнами ')
+          else:
+            print(f'::set-output name=check_deadline::0')
+          END
+      - name: CheckRep
+        id: changePoints
+        run: |
+            python3 <<END
             import json
-            import os
-            import sys
             
             def jsonParce(data):
               markdown = []
@@ -62,65 +122,42 @@ jobs:
               return markdown, code, data.get("metadata").get("kernelspec").get("language")
             
             def changePoints(markdown):
-              substrings=["# Цель работы", "# Основные теоретические положения", "# Постановка задачи", "# Выполнение работы", "# Выводы"]
+              substrings=["Цель работы", "Основные теоретические положения", "Постановка задачи", "Выполнение работы", "Выводы"]
               j=0
-              substr=substrings[j]
+              substr = substrings[j]
+              is_all_found = 0
             
-              for str in markdown:
-                  if substr in str:
-                      if j<4:
-                          j=j+1
-                          substr = substrings[j]
-                          #print("\n",j,"\n",substr)
-                      else:
-                          j=j+1
-              if j == 5:
-                  print(f'::set-output name=check_report::1')
-                  #print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')
+              for line in markdown:
+                  if substr in line:
+                      j+=1
+                      if j == len(substrings):
+                        is_all_found = 1
+                        break
+                      substr = "# " + substrings[j]
+              print(f'::set-output name=check_report::{str(is_all_found)}')
+              if is_all_found:
+                  print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')
               else:
-                  print(f'::set-output name=check_report::0')
-                  print(f'::set-output name=check_rep_error::Не найдено: ')
-                  if j==0:
-                      print(f'::set-output name=check_rep_error::Цель работы')
-                  if j==1:
-                      print(f'::set-output name=check_rep_error::Основные теоретические положения')
-                  if j==2:
-                      print(f'::set-output name=check_rep_error::Постановка задачи')
-                  if j==3:
-                      print(f'::set-output name=check_rep_error::Выполнение работы')
-                  if j==4:
-                      print(f'::set-output name=check_rep_error::Выводы')
-            '''
-            for param in sys.argv:
-              print (param)
-            try:
-                #f = open('FILE_PATH.txt', encoding='utf-8')
-                f = open('FILE_PATH.txt')
-            except FileNotFoundError:
-                print("No file FILE_PATH")
-            
-            path = f.read()
-            
-            os.system('ls')
-            f.close
-            print(path)
-            try:
-                notebook = open(path)
-            except FileNotFoundError:
+                  print(f'::set-output name=check_rep_error::Не найдено: {substrings[j]}')
+            def start_analyzing(path):
+              try:
+                notebook = open(path, encoding='utf-8')
+              except FileNotFoundError:
                 print("No file")
-            '''
-            data = json.loads(sys.argv[1])
-            #notebook.close()
-            markdown, code, language = jsonParce(data)
-            changePoints(markdown)
+              data = json.load(notebook)
+              notebook.close()
+              markdown, code, language = jsonParce(data)
+              changePoints(markdown)
+              
+            path = '${{steps.check_path.outputs.path}}'
+            if path and '${{steps.checkdeadline.outputs.check_deadline}}' == '1':
+              start_analyzing(path)
+            else:
+              print(f'::set-output name=check_report::0')
             END
-      - name: CheckRep
-        id: changePoints
-        run: |
-          python3 parser.py "$(cat $(cat FILE_PATH.txt))"
       - name: Approve/Request changes pull request
         uses: andrewmusgrave/automatic-pull-request-review@0.0.2
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          event: ${{ steps.changePoints.outputs.check_report == 1 && 'APPROVE' || 'REQUEST_CHANGES' }}
-          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: ${{ steps.changePoints.outputs.check_rep_error }}"
+          event: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'APPROVE' || 'REQUEST_CHANGES' }}
+          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: ${{ steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && steps.changePoints.outputs.check_rep_error || steps.check_path.outputs.check_file_error || steps.checkdeadline.outputs.check_deadline_error}}"
