@@ -71,7 +71,7 @@
               lab_num=''
 
             if path and not os.path.exists(path):
-              notifier.critical('Файл не найден по шаблону <Номер группы>/<ФИО>/lab<номер лабораторной>.ipynb')
+              notifier.critical('Файл не найден по шаблону <Номер группы>/<Фамилия_Инициалы>/lab<номер лабораторной>.ipynb')
               path=''
               lab_num=''
 
