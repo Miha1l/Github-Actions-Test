@@ -61,11 +61,12 @@
             notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
             pr_name =  '${{github.event.pull_request.title}}'
             items = pr_name.split('_')
+            items[1:3] = ['_'.join(items[1:3])]
             lab_num = items[-1]
             path = '/'.join(items)+'.ipynb' 
     
-            if not re.match(r'^\d{4}_[a-zA-Z]+_lab\d{1,2}$', pr_name):
-              notifier.critical('Название PR не соотвествует шаблону <Номер группы>_<ФИО>_lab<номер лабораторной>!')
+            if not re.match(r'^\d{4}_[a-zA-Z]+_[a-zA-Z]+_(lab|task)\d{1,2}$', pr_name):
+              notifier.critical('Название PR не соотвествует шаблону <Номер группы>_<Фамилия>_<Инициалы>_lab<номер лабораторной>!')
               path=''
               lab_num=''
 
