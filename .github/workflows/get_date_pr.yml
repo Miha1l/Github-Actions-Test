@@ -1,202 +1,204 @@
-name: IPYNB_PARSER
+  name: IPYNB_PARSER
 
-on:
-  pull_request:
-    branches: [ master, main ]
-    types: [opened, synchronize, reopened, edited]
+  on:
+    pull_request:
+      branches: [ master, main ]
+      types: [opened, synchronize, reopened, edited]
+  env:
+    ERRORS: ''
+    WARNINGS: ''
+    INFO: ''
+    CRITICAL: ''
 
-jobs:
-  check_ipynb:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
-      - name: Установка библиотек
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytz
-      - name: Имя PR
-        run: echo ${{github.event.pull_request.title}}
-      - name: Путь до файла
-        id: check_path
-        run: |
-          python3 << END
-          import os.path
-          import re
-          
-          pr_name =  '${{github.event.pull_request.title}}'
-          items = pr_name.split('_')
-          lab_num = items[-1]
-          path = '/'.join(items)+'.ipynb' 
-   
-          if not re.match(r'^\d{4}_[a-zA-Z]+_lab\d{1,2}$', pr_name):
-            print(f'::set-output name=check_file::0')
-            print(f'::set-output name=check_file_error::Название PR не соотвествует шаблону <Номер группы>_<ФИО>_lab<номер лабораторной>! ')
-            path=''
-            lab_num=''
+    IMPORT_BOTNOTIFIER: |
+      class BotNotifier:
+        def __init__(self, github_env_path, prev_errors, prev_warnings, prev_info_pr):
+          self.runner = open(github_env_path,'a')
+          self.new_line = '\\\\n'
+          self.errors_ = self.new_line.join(prev_errors.split('\n'))
+          self.info_pr_ = self.new_line.join(prev_info_pr.split('\n'))
+          self.warnings_ = self.new_line.join(prev_warnings.split('\n'))
+          self.critical_ = ''
+        def set_env_and_close_runner(self):
+          self.runner.write(self.form_instuction('ERRORS',self.errors_))
+          self.runner.write(self.form_instuction('WARNINGS',self.warnings_))
+          self.runner.write(self.form_instuction('INFO',self.info_pr_))
+          self.runner.write(self.form_instuction('CRITICAL',self.critical_))
+          self.runner.close()
+        def info(self,message):
+          self.info_pr_+=message+self.new_line
+        def error(self, message):
+          self.errors_+=message+self.new_line
+        def warning(self, message):
+          self.warnings_+=message+self.new_line
+        def critical(self, message):
+          self.critical_+=message+self.new_line
+        def form_instuction(self, env_name, value):
+          if not value:
+            return ''
+          return env_name+'='+value+'\n'
+  jobs:
+    check_ipynb:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+        - uses: actions/setup-python@v3
+          with:
+            python-version: '3.9'
+        - name: Установка библиотек
+          run: |
+            python -m pip install --upgrade pip
+            pip install pytz
+        - name: Имя PR
+          run: echo ${{github.event.pull_request.title}}
+        - name: Формирование пути до файла по PR и проверка, что файл существует
+          id: check_path
+          run: |
+            python3 << END
+            import os.path
+            import re
+            ${{env.IMPORT_BOTNOTIFIER}}
+            notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
+            pr_name =  '${{github.event.pull_request.title}}'
+            items = pr_name.split('_')
+            lab_num = items[-1]
+            path = '/'.join(items)+'.ipynb' 
+    
+            if not re.match(r'^\d{4}_[a-zA-Z]+_lab\d{1,2}$', pr_name):
+              notifier.critical('Название PR не соотвествует шаблону <Номер группы>_<ФИО>_lab<номер лабораторной>!')
+              path=''
+              lab_num=''
 
-          if path and not os.path.exists(path):
-            print(f'::set-output name=check_file_error::Файл не найден по шаблону <Номер группы>/<ФИО>/lab<номер лабораторной>.ipynb' )
-            path=''
-            lab_num=''
+            if path and not os.path.exists(path):
+              notifier.critical('Файл не найден по шаблону <Номер группы>/<ФИО>/lab<номер лабораторной>.ipynb')
+              path=''
+              lab_num=''
 
-          if path:
-            print(f'::set-output name=check_file::1')
             print(f'::set-output name=path::'+path)
             print(f'::set-output name=labnum::'+lab_num)
-          else:
-            print(f'::set-output name=check_file::0')
-          END
-      - name: CheckDeadline
-        id: checkdeadline
-        run: |
-          python3 << END
-          from datetime import datetime
-          import pytz
-          import json
-          
 
-          if '${{steps.check_path.outputs.check_file}}' == '1':
+            notifier.set_env_and_close_runner()
+            END
+        - name: Проверка дедлайнов
+          if: ${{ env.CRITICAL  == ''}}
+          id: checkdeadline
+          run: |
+            python3 << END
+            from datetime import datetime
+            import pytz
+            import json
+            ${{env.IMPORT_BOTNOTIFIER}}
+            notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
             labnum = '${{steps.check_path.outputs.labnum}}'
-            n = '%0A'
-            messageString = f''
             try:
               f = open("deadline.json", encoding='utf-8')
               deadlines = json.load(f)
               f.close()
-              try:
-                dl = deadlines[labnum]
-                date_time_str = '${{github.event.pull_request.created_at}}'
-                timezone = pytz.timezone("Europe/Moscow")
-                date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
-                creation_date = str(date_time_obj.date())
-                creation_time = str(date_time_obj.time())
-                if creation_date <= dl:
-                  print(f'::set-output name=check_deadline::1')
-                  #print(f'::set-output name=check_deadline_error::Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}')
-                  messageString += "Работа загружена: " + creation_date + creation_time + n + "Дедлайн: " + dl + n
-                  print(f'::set-output name=check_deadline_error::{messageString}')
-                else:
-                  print(f'::set-output name=check_deadline::0')
-                  #print(f'::set-output name=check_deadline_error::Вы опоздали. Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}')
-                  messageString += f'Вы опоздали. Работа загружена: {creation_date} {creation_time}{n}Дедлайн: {dl}'
-                  print(f'::set-output name=check_deadline_error::{messageString}')
-              except KeyError:
-                print(f'::set-output name=check_deadline::0')
-                print(f'::set-output name=check_deadline_error::отсутствует дедлайн для данной лабораторной работы ')
-                #messageString += f'отсутствует дедлайн для данной лабораторной работы '
+              dl = deadlines[labnum]
+              date_time_str = '${{github.event.pull_request.created_at}}'
+              timezone = pytz.timezone("Europe/Moscow")
+              date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
+              print('test1')
+              creation_date = str(date_time_obj.date())
+              creation_time = str(date_time_obj.time())
+              print('test2')
+              if creation_date <= dl:
+                notifier.info('Работа загружена: '+creation_date+' '+creation_time)
+              else:
+                notifier.info('Вы опоздали. Работа загружена: '+creation_date+' '+creation_time)
+              notifier.info('Дедлайн: '+dl)
+            except KeyError:
+              notifier.warning('Отсутствует дедлайн для данной лабораторной работы')
             except FileNotFoundError:
               print("No such file or directory: '{}'".format(filename))
-              print(f'::set-output name=check_deadline::0')
-              print(f'::set-output name=check_deadline_error::Неудалось найти файл с дедлайнами ')
-              #messageString += f'Неудалось найти файл с дедлайнами '
-          else:
-            print(f'::set-output name=check_deadline::0')
-          END
-      - name: CheckRep
-        id: changePoints
-        run: |
-            python3 <<END
-            import json
-            
-            def jsonParce(data):
-                markdown = []
-                code = []
-                cells = data.get("cells")
-                for cell in cells:
-                    if cell.get("cell_type") == "markdown":
-                        for md in cell.get("source"):
-                            markdown.append(md)
-                    elif cell.get("cell_type") == "code":
-                        for c in cell.get("source"):
-                            code.append(c)
-                return markdown, code, data.get("metadata").get("kernelspec").get("language")
-        
-        
-            def changePoints(markdown: list, messageString: str) -> None:
-                """
-                    Function checks availability of all necessary headers.
-        
-                    Args:
-                        markown (list): List of strings from cells in Jupyter Notebook.
-        
-                    Returns:
-                        None
-                """
-                substrings: list = ["# Цель работы", "# Основные теоретические положения", "# Постановка задачи",
-                                    "# Выполнение работы",
-                                    "# Выводы"]
-                dict_substrings: dict = dict.fromkeys(substrings, False)
-        
-                for key in dict_substrings:
-                    for str in markdown:
-                        if key in str:
-                            dict_substrings[key] = True
-        
-                for key in dict_substrings:
-                    if not dict_substrings[key]:
-                        # print(f'::set-output name=check_rep_error::{key} not found')
-                        messageString += f'{key} not found'
-                        print(key + ' not found%0A')
-                    else:
-                        # print(f'::set-output name=check_rep_error::{key} ok')
-                        messageString += f'{key} ok%0A'
-                        print(key + ' ok')
-        
-                if all(value for value in dict_substrings.values()):
-                    # print(f'::set-output name=check_rep_error::Кажется, всё хорошо.')   
-                    messageString += f'Кажется, всё хорошо.'
-                    print(f'::set-output name=check_rep_error::{messageString}')
-                    print(f'::set-output name=check_report::1')
-                else:
-                    # print(f'::set-output name=check_rep_error::Попробуй снова!')
-                    messageString += f'Попробуй снова!'
-                    print(f'::set-output name=check_rep_error::{messageString}')
-                    print(f'::set-output name=check_report::0')
-        
-        
-            def start_analyzing(path, messageString):
-                try:
-                    notebook = open(path, encoding='utf-8')
-                except FileNotFoundError:
-                    print("No file")
-                data = json.load(notebook)
-                notebook.close()
-                markdown, code, language = jsonParce(data)
-                # print(f'::set-output name=check_rep_error::Ядро: {language}')
-                messageString += f'Ядро: {language}%0A'
-                print(f"Ядро: {language}")
-                changePoints(markdown, messageString)
-        
-        
-            messageString = f''
-            path = '${{steps.check_path.outputs.path}}'
-            if path:
-                start_analyzing(path, messageString)
-            else:
-                print(f'::set-output name=check_report::0')
+              notifier.warning('Не удалось найти файл с дедлайнами')
+            notifier.set_env_and_close_runner()
             END
-      - name: Start comment
-        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
-        with:
-          repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          event: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'APPROVE' || 'REQUEST_CHANGES'}}
-          body: "## Автоматическая проверка. \\n **Результат**: ${{ steps.changePoints.outputs.check_report == 1 && steps.check_path.outputs.check_file == 1 && steps.checkdeadline.outputs.check_deadline == 1 && 'Проверка пройдена!' || 'Проверка не пройдена.' }} \\n *Детали*: "
-
-      - name: bot comments
-        if: ${{steps.check_path.outputs.check_file == 0}}
-        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
-        with:
-          repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          event: 'COMMENT'
-          body: "${{steps.check_path.outputs.check_file_error}} \\n"
-
-      - name: bot comments1
-        if: ${{steps.check_path.outputs.check_file == 1}}
-        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
-        with:
-          repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          event: 'COMMENT'
-          body: "${{steps.checkdeadline.outputs.check_deadline_error}} \\n ${{steps.changePoints.outputs.check_rep_error}} "
+        - name: Проверка наличия пунктов
+          if: ${{ env.CRITICAL  == ''}}
+          run: |
+              python3 <<END
+              import json
+              ${{env.IMPORT_BOTNOTIFIER}}
+              notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
+              
+              def jsonParce(data):
+                  markdown = []
+                  code = []
+                  cells = data.get("cells")
+                  for cell in cells:
+                      if cell.get("cell_type") == "markdown":
+                          for md in cell.get("source"):
+                              markdown.append(md)
+                      elif cell.get("cell_type") == "code":
+                          for c in cell.get("source"):
+                              code.append(c)
+                  return markdown, code, data.get("metadata").get("kernelspec").get("language")
+          
+          
+              def changePoints(markdown):
+                  substrings = ["# Цель работы", "# Основные теоретические положения", "# Постановка задачи",
+                                      "# Выполнение работы",
+                                      "# Выводы"]
+                  dict_substrings = dict.fromkeys(substrings, False)
+          
+                  for row in markdown:
+                      for key in dict_substrings:
+                          if key in row:
+                              dict_substrings[key] = True
+                  if not all(dict_substrings.values()):
+                      notifier.error('Отсутствуют обязательные пункты ')
+                  for key in dict_substrings:
+                      if not dict_substrings[key]:
+                          notifier.error(key+' not found')
+          
+          
+              def start_analyzing(path):
+                  try:
+                      notebook = open(path, encoding='utf-8')
+                  except FileNotFoundError:
+                      print("No file")
+                  data = json.load(notebook)
+                  notebook.close()
+                  markdown, code, language = jsonParce(data)
+                  notifier.info('Ядро: '+language)
+                  changePoints(markdown)
+          
+          
+              path = '${{steps.check_path.outputs.path}}'
+              start_analyzing(path)
+              notifier.set_env_and_close_runner()
+              END
+        - name: Критическая ошибка
+          if: ${{ env.CRITICAL  != ''}}
+          uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+          with:
+            repo-token: '${{ secrets.GITHUB_TOKEN }}'
+            event: 'REQUEST_CHANGES'
+            body: |
+              ## Автоматическая проверка.
+              **Результат**:  Проверка не пройдена.
+              **Детали**: ${{env.CRITICAL}}
+        - name: Все хорошо
+          if: ${{ env.CRITICAL  == '' && env.ERRORS == ''}}
+          uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+          with:
+            repo-token: '${{ secrets.GITHUB_TOKEN }}'
+            event: 'APPROVE'
+            body: |
+              ## Автоматическая проверка.
+              **Результат**:  Проверка пройдена.
+              **Информация о PR**: ${{env.INFO}}
+              **Недочеты**: ${{env.WARNINGS != '' &&  env.WARNINGS || '-' }}
+        - name: Есть ошибки
+          if: ${{ env.CRITICAL  == '' && env.ERRORS != ''}}
+          uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+          with:
+            repo-token: '${{ secrets.GITHUB_TOKEN }}'
+            event: 'REQUEST_CHANGES'
+            body: |
+              ## Автоматическая проверка.
+              **Результат**: Проверка не пройдена.
+              **Информация о PR**: ${{env.INFO}}
+              **Детали**: ${{env.ERRORS}}
+              **Недочеты**: ${{env.WARNINGS != '' &&  env.WARNINGS || '-' }}
