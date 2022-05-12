@@ -162,7 +162,6 @@
               def changePoints(markdown):
                   
                   substrings = eval("${{steps.config_check.outputs.points}}")
-                  #substrings = ["Цель работы","Основные теоретические положения","Постановка задачи","Выполнение работы","Вывод"]
                   print(substrings)
               
                   dict_substrings = dict.fromkeys(substrings, False)
@@ -173,11 +172,8 @@
                           if re.search(re_key, str):
                               dict_substrings[key] = True
                               
-                  #if not re.match(
-                  #        r'^#\sПрактическая\sработа\s№\s?\d+:\s([А-Яа-яA-Za-z-\d]+\s?)+(\\n)?$', markdown[0]) or not re.match(
-                  #    r'^(В|в)ыполнила?\sстудент(ка)?\s(гр\.|группы)\s\d{4}\s[А-Я|A-Z][а-я|a-z]+\s[А-Я|A-Z][а-я|a-z]+,?\s(В|в)ариант\s?\d{1,2}\.?$',
-                  #    markdown[2]):
-                  #    notifier.error('Некорректное название работы ')
+                  if not re.match(r'^#\sПрактическая\sработа\s№\s?\d+:\s([А-Яа-яA-Za-z-\d]+\s?)+(\\n)?$', markdown[0]) or not re.match(r'^(В|в)ыполнила?\sстудент(ка)?\s(гр\.|группы)\s\d{4}\s[А-Я|A-Z][а-я|a-z]+\s[А-Я|A-Z][а-я|a-z]+,?\s(В|в)ариант\s?\d{1,2}\.?$', markdown[2]):
+                      notifier.error('Некорректное название работы ')
                   
                   if not all(dict_substrings.values()):
                       notifier.error('**Отсутствуют обязательные пункты:**')
