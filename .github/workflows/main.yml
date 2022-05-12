@@ -173,7 +173,7 @@
                               dict_substrings[key] = True
                               
                   if not re.match(
-                          r'^#\sПрактическая\sработа\s№\s?\d+:\s[\W\w\s]+.\n$', markdown[0]) or not re.match(
+                          r'^#\sПрактическая\sработа\s№\s?\d+:\s[а-яА-Я- \w]+.\n$', markdown[0]) or not re.match(
                       r'^(В|в)ыполнила?\sстудент(ка)?\s(гр\.|группы)\s\d{4}\s[А-Я|A-Z][а-я|a-z]+\s[А-Я|A-Z][а-я|a-z]+,?\s(В|в)ариант\s?\d{1,2}\.?$',
                       markdown[2]):
                       notifier.error('Некорректное название работы ')
