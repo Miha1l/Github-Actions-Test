@@ -178,6 +178,11 @@
                   #    markdown[2]):
                   #    notifier.error('Некорректное название работы ')
                   
+                  print('markdown[0]:')
+                  print(markdown[0])
+                  print('markdown[2]:')
+                  print(markdown[2])
+                  
                   if not all(dict_substrings.values()):
                       notifier.error('**Отсутствуют обязательные пункты:**')
                       for key in dict_substrings:
