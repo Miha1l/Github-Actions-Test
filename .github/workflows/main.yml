@@ -167,11 +167,11 @@
               
                   dict_substrings = dict.fromkeys(substrings, False)
                 
-                  #for key in dict_substrings:
-                  #    for str in markdown:
-                  #        re_key = r'^##\s+' + key
-                  #        if re.search(re_key, str):
-                  #            dict_substrings[key] = True
+                  for key in dict_substrings:
+                      for str in markdown:
+                          re_key = r'^##\s+' + key
+                          if re.search(re_key, str):
+                              dict_substrings[key] = True
                               
                   #if not re.match(
                   #        r'^#\sПрактическая\sработа\s№\s?\d+:\s([А-Яа-яA-Za-z-\d]+\s?)+(\\n)?$', markdown[0]) or not re.match(
@@ -179,11 +179,11 @@
                   #    markdown[2]):
                   #    notifier.error('Некорректное название работы ')
                   
-                  #if not all(dict_substrings.values()):
-                  #    notifier.error('**Отсутствуют обязательные пункты:**')
-                  #    for key in dict_substrings:
-                  #        if not dict_substrings[key]:
-                  #            notifier.error('* '+key)
+                  if not all(dict_substrings.values()):
+                      notifier.error('**Отсутствуют обязательные пункты:**')
+                      for key in dict_substrings:
+                          if not dict_substrings[key]:
+                              notifier.error('* '+key)
           
           
               def start_analyzing(path):
