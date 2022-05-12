@@ -167,11 +167,11 @@
               
                   dict_substrings = dict.fromkeys(substrings, False)
                 
-                  for key in dict_substrings:
-                      for str in markdown:
-                          re_key = r'^##\s+' + key
-                          if re.search(re_key, str):
-                              dict_substrings[key] = True
+                  #for key in dict_substrings:
+                  #    for str in markdown:
+                  #        re_key = r'^##\s+' + key
+                  #        if re.search(re_key, str):
+                  #            dict_substrings[key] = True
                               
                   if not re.match(
                           r'^#\sПрактическая\sработа\s№\s?\d+:\s([А-Яа-яA-Za-z-\d]+\s?)+(\\n)?$', markdown[0]) or not re.match(
@@ -204,7 +204,7 @@
                       notifier.error('**Несоответствие требованиям по языку**')
                       notifier.error('Ядро блокнота: ' + language)
                       notifier.error('Разрешенные ядра: '  + str(languages))
-                  #changePoints(markdown)
+                  changePoints(markdown)
           
           
               path = '${{steps.check_path.outputs.path}}'
