@@ -209,7 +209,7 @@
           
               path = '${{steps.check_path.outputs.path}}'
               print('start_analyzing')
-              //start_analyzing(path)
+              #start_analyzing(path)
               notifier.set_env_and_close_runner()
               END
         - name: Критическая ошибка
