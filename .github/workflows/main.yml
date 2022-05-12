@@ -161,8 +161,8 @@
           
               def changePoints(markdown):
                   
-                  substrings = eval("${{steps.config_check.outputs.points}}")
-                  
+                  #substrings = eval("${{steps.config_check.outputs.points}}")
+                  substrings = ["Цель работы","Основные теоретические положения","Постановка задачи","Выполнение работы","Вывод"]
                   print(substrings)
               
                   dict_substrings = dict.fromkeys(substrings, False)
