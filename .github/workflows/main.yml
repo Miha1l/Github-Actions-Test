@@ -66,18 +66,50 @@
             path = '/'.join(items)+'.ipynb' 
     
             if not re.match(r'^\d{4}_[a-zA-Z]+_[a-zA-Z]+_(lab|task)\d{1,2}$', pr_name):
-              notifier.critical('Название PR не соотвествует шаблону <Номер группы>_<Фамилия>_<Инициалы>_lab<номер лабораторной>!')
+              notifier.critical('Название PR не соотвествует шаблону <Номер группы>_<Фамилия>_<Инициалы>_(lab|task)<номер работы>!')
               path=''
               lab_num=''
 
             if path and not os.path.exists(path):
-              notifier.critical('Файл не найден по шаблону <Номер группы>/<Фамилия_Инициалы>/lab<номер лабораторной>.ipynb')
+              notifier.critical('Файл не найден по шаблону <Номер группы>/<Фамилия_Инициалы>/(lab|task)<номер работы>.ipynb')
               path=''
               lab_num=''
 
             print(f'::set-output name=path::'+path)
             print(f'::set-output name=labnum::'+lab_num)
 
+            notifier.set_env_and_close_runner()
+            END
+        - name: Чтение config
+          if: ${{ env.CRITICAL  == ''}}
+          id: config_check
+          run: |
+            python3 << END
+            import json
+            ${{env.IMPORT_BOTNOTIFIER}}
+            notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
+            try:
+                with open('config.json', 'r') as f:
+                    config = json.load(f)
+        
+                points = config.get("settings").get("points")
+                work = config.get("works").get("${{steps.check_path.outputs.labnum}}")
+                
+                if points and work:
+                    deadline = work.get("deadline")
+                    if work.get("kernel"):
+                        language = work.get("kernel")
+                    else:
+                        language = config.get("default_kernel")
+                    
+                    print(f'::set-output name=points::'+str(points))
+                    print(f'::set-output name=deadline::'+deadline)
+                    print(f'::set-output name=language::'+str(language))
+                else:
+                    notifier.critical("Нет работы в конфиге")    
+        
+            except FileNotFoundError:
+                notifier.critical("No config in repository")
             notifier.set_env_and_close_runner()
             END
         - name: Проверка дедлайнов
@@ -87,32 +119,21 @@
             python3 << END
             from datetime import datetime
             import pytz
-            import json
             ${{env.IMPORT_BOTNOTIFIER}}
             notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
-            labnum = '${{steps.check_path.outputs.labnum}}'
-            try:
-              f = open("deadline.json", encoding='utf-8')
-              deadlines = json.load(f)
-              f.close()
-              dl = deadlines[labnum]
-              date_time_str = '${{github.event.pull_request.created_at}}'
-              timezone = pytz.timezone("Europe/Moscow")
-              date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
-              print('test1')
-              creation_date = str(date_time_obj.date())
-              creation_time = str(date_time_obj.time())
-              print('test2')
-              if creation_date <= dl:
-                notifier.info('Работа загружена: '+creation_date+' '+creation_time)
-              else:
-                notifier.info('Вы опоздали. Работа загружена: '+creation_date+' '+creation_time)
-              notifier.info('Дедлайн: '+dl)
-            except KeyError:
-              notifier.warning('Отсутствует дедлайн для данной лабораторной работы')
-            except FileNotFoundError:
-              print("No such file or directory: '{}'".format(filename))
-              notifier.warning('Не удалось найти файл с дедлайнами')
+            deadline = "${{steps.config_check.outputs.deadline}}"
+            date_time_str = '${{github.event.pull_request.created_at}}'
+            timezone = pytz.timezone("Europe/Moscow")
+            date_time_obj = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone)
+            creation_date = str(date_time_obj.date())
+            creation_time = str(date_time_obj.time())
+            if creation_date <= deadline:                
+              notifier.info('Работа загружена: '+creation_date+' '+creation_time)
+            else:
+              notifier.info('Работа загружена: '+creation_date+' '+creation_time)
+              notifier.error('**Вы опоздали ):**')
+              notifier.error('Работа загружена: '+creation_date+' '+creation_time)
+              notifier.error('Дедлайн: '+deadline)  
             notifier.set_env_and_close_runner()
             END
         - name: Проверка наличия пунктов
@@ -120,6 +141,7 @@
           run: |
               python3 <<END
               import json
+              import re
               ${{env.IMPORT_BOTNOTIFIER}}
               notifier = BotNotifier('$GITHUB_ENV','${{env.ERRORS}}','${{env.WARNINGS}}','${{env.INFO}}')
               
@@ -138,35 +160,55 @@
           
           
               def changePoints(markdown):
-                  substrings = ["# Цель работы", "# Основные теоретические положения", "# Постановка задачи",
-                                      "# Выполнение работы",
-                                      "# Выводы"]
+                  
+                  substrings = eval("${{steps.config_check.outputs.points}}")
+                  
+                  print(substrings)
+              
                   dict_substrings = dict.fromkeys(substrings, False)
-          
-                  for row in markdown:
-                      for key in dict_substrings:
-                          if key in row:
-                              dict_substrings[key] = True
-                  if not all(dict_substrings.values()):
-                      notifier.error('Отсутствуют обязательные пункты ')
+                
                   for key in dict_substrings:
-                      if not dict_substrings[key]:
-                          notifier.error(key+' not found')
+                      for str in markdown:
+                          re_key = r'^##\s+' + key
+                          if re.search(re_key, str):
+                              dict_substrings[key] = True
+                              
+                  if not re.match(
+                          r'^#\sПрактическая\sработа\s№\s?\d+:\s([А-Яа-яA-Za-z-\d]+\s?)+(\\n)?$', markdown[0]) or not re.match(
+                      r'^(В|в)ыполнила?\sстудент(ка)?\s(гр\.|группы)\s\d{4}\s[А-Я|A-Z][а-я|a-z]+\s[А-Я|A-Z][а-я|a-z]+,?\s(В|в)ариант\s?\d{1,2}\.?$',
+                      markdown[2]):
+                      notifier.error('Некорректное название работы ')
+                  
+                  if not all(dict_substrings.values()):
+                      notifier.error('**Отсутствуют обязательные пункты:**')
+                      for key in dict_substrings:
+                          if not dict_substrings[key]:
+                              notifier.error('* '+key)
           
           
               def start_analyzing(path):
                   try:
                       notebook = open(path, encoding='utf-8')
+                      print('file open')
                   except FileNotFoundError:
                       print("No file")
                   data = json.load(notebook)
+                  print('json load')
                   notebook.close()
                   markdown, code, language = jsonParce(data)
+                  print('json parced')
                   notifier.info('Ядро: '+language)
+                  languages = eval("${{steps.config_check.outputs.language}}")
+                  if len(languages):
+                    if language not in languages:
+                      notifier.error('**Несоответствие требованиям по языку**')
+                      notifier.error('Ядро блокнота: ' + language)
+                      notifier.error('Разрешенные ядра: '  + str(languages))
                   changePoints(markdown)
           
           
               path = '${{steps.check_path.outputs.path}}'
+              print('start_analyzing')
               start_analyzing(path)
               notifier.set_env_and_close_runner()
               END
@@ -179,7 +221,8 @@
             body: |
               ## Автоматическая проверка.
               **Результат**:  Проверка не пройдена.
-              **Детали**: ${{env.CRITICAL}}
+              **Детали**: 
+              ${{env.CRITICAL}}
         - name: Все хорошо
           if: ${{ env.CRITICAL  == '' && env.ERRORS == ''}}
           uses: andrewmusgrave/automatic-pull-request-review@0.0.2
@@ -189,8 +232,8 @@
             body: |
               ## Автоматическая проверка.
               **Результат**:  Проверка пройдена.
-              **Информация о PR**: ${{env.INFO}}
-              **Недочеты**: ${{env.WARNINGS != '' &&  env.WARNINGS || '-' }}
+              **Информация о PR**: 
+              ${{env.INFO}}
         - name: Есть ошибки
           if: ${{ env.CRITICAL  == '' && env.ERRORS != ''}}
           uses: andrewmusgrave/automatic-pull-request-review@0.0.2
@@ -200,6 +243,7 @@
             body: |
               ## Автоматическая проверка.
               **Результат**: Проверка не пройдена.
-              **Информация о PR**: ${{env.INFO}}
-              **Детали**: ${{env.ERRORS}}
-              **Недочеты**: ${{env.WARNINGS != '' &&  env.WARNINGS || '-' }}
+              **Информация о PR**: 
+              ${{env.INFO}}
+              **Детали**: 
+              ${{env.ERRORS}}
