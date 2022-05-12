@@ -204,12 +204,12 @@
                       notifier.error('**Несоответствие требованиям по языку**')
                       notifier.error('Ядро блокнота: ' + language)
                       notifier.error('Разрешенные ядра: '  + str(languages))
-                  changePoints(markdown)
+                  #changePoints(markdown)
           
           
               path = '${{steps.check_path.outputs.path}}'
               print('start_analyzing')
-              #start_analyzing(path)
+              start_analyzing(path)
               notifier.set_env_and_close_runner()
               END
         - name: Критическая ошибка
